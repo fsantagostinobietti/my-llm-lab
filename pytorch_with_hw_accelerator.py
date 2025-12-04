@@ -1,13 +1,16 @@
 # see https://apxml.com/posts/pytorch-macos-metal-gpu
 
 import torch
+import time
+
 print("pytorch version:", torch.__version__)
-mps_available = torch.backends.mps.is_available()
-print(f"MPS available: {mps_available}")
+accelerator_available = torch.accelerator.is_available()
+print(f"Accelerator available: {accelerator_available}")
 
 # Check device
-device = torch.device("mps" if mps_available else "cpu")
-print(f"Using device: {str(device).upper()}")
+device = torch.accelerator.current_accelerator() if accelerator_available else torch.device("cpu")
+device_name = device.type.upper()
+print(f"Using accelerator device: {device_name}")
 
 # Example: Tensor operations
 x = torch.rand(3, 3).to(device)
@@ -21,22 +24,21 @@ input_tensor = torch.rand(1, 3).to(device)
 output = model(input_tensor)
 print(output)
 
+if accelerator_available:
+    # Benchmarking
+    x = torch.rand(1000, 1000)
 
-import time
+    # CPU Benchmark
+    start = time.time()
+    for _ in range(100):
+        y = x @ x
+    end = time.time()
+    print(f"CPU time: {end - start:.4f} sec")
 
-x = torch.rand(1000, 1000)
-
-# CPU Benchmark
-start = time.time()
-for _ in range(100):
-    y = x @ x
-end = time.time()
-print(f"CPU time: {end - start:.4f} sec")
-
-# MPS Benchmark
-x = x.to("mps")
-start = time.time()
-for _ in range(100):
-    y = x @ x
-end = time.time()
-print(f"MPS time: {end - start:.4f} sec")
+    # Accelerator Benchmark
+    x = x.to(device)
+    start = time.time()
+    for _ in range(100):
+        y = x @ x
+    end = time.time()
+    print(f"{device_name} time: {end - start:.4f} sec")
