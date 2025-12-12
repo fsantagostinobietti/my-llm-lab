@@ -1,0 +1,96 @@
+# Byte-compiled / caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# PyTorch artifacts and model checkpoints
+checkpoints/
+models/
+runs/
+tensorboard/
+*.pt
+*.pth
+*.ckpt
+*.pth.tar
+
+# Data files (common large data files)
+data/
+*.csv
+*.tsv
+*.h5
+*.npz
+*.npy
+
+# Jupyter
+.ipynb_checkpoints
+*.ipynb
+
+# VS Code / IDE
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Logs and temp files
+*.log
+tmp/
+temp/
+
+# Environment files
+.env
+.env.*
+.envrc
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Caches
+.cache/
+
+# Misc
+*.swp
+*~
+
+# Lockfiles (if you use pipenv/poetry)
+Pipfile.lock
+poetry.lock
+
+# Ignore local machine-specific Python path files
+.python-version
+
+# Notebook checkpoints and outputs
+.ipynb_checkpoints/
+
+# Keep IDE/project specific files out
+.idea/
+
+# End of .gitignore

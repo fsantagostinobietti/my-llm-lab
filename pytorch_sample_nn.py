@@ -10,7 +10,7 @@ class NeuralNetwork(nn.Module):
     def __init__(self):
         super().__init__()
         self.linear_relu_stack = nn.Sequential(
-            nn.Linear(1+9*9, 512),
+            nn.Linear(9*9, 512),
             nn.ReLU(),
             nn.Linear(512, 9),
         )
@@ -33,8 +33,13 @@ if __name__ == '__main__':
     model = NeuralNetwork().to(device)
     print(model)
 
-    SIZE_SAMPLES = (1+9*9,)
-    #SIZE_SAMPLES = (2, 1+9*9)
+    # Print model's state_dict
+    print("Model's state_dict:")
+    for param_tensor in model.state_dict():
+        print(param_tensor, "\t", model.state_dict()[param_tensor].size())
+
+    SIZE_SAMPLES = (9*9,)
+    #SIZE_SAMPLES = (2, 9*9)
     dim_samples = len(SIZE_SAMPLES) - 1
     X = torch.rand(SIZE_SAMPLES, device=device)
     print(X.size())

@@ -65,9 +65,10 @@ class TicTacToeFileDataset(Dataset):
 
 class TicTacToeStreamDataset(IterableDataset):
     """dataset from a stream for Tic Tac Toe games"""
-    def __init__(self, game_generator):
+    def __init__(self, game_generator, device: torch.device):
         super().__init__()
         self.game_generator = game_generator
+        self.device = device
 
     def _extract_training_sample(self, game: str) -> tuple[str, str]:
         """Extract a training sample from a game string.
@@ -96,8 +97,7 @@ class TicTacToeStreamDataset(IterableDataset):
         
         return (input_moves, output_move)
 
-    @staticmethod
-    def _from_move_to_one_hot(move: str) -> torch.Tensor:
+    def _from_move_to_one_hot(self, move: str) -> torch.Tensor:
         """Convert a move string to a one-hot encoded tensor."""
         one_hot = torch.zeros(9)
         move_index = int(move) - 1  # Convert move '1'-'9' to index 0-8
@@ -105,20 +105,14 @@ class TicTacToeStreamDataset(IterableDataset):
             one_hot[move_index] = 1
         return one_hot
 
-    @staticmethod
-    def _from_game_to_one_hot(game: str) -> torch.Tensor:
+    def _from_game_to_one_hot(self, game: str) -> torch.Tensor:
         """Convert a game string to a one-hot encoded tensor."""
-        player = game[0]  # 'A' or 'B'
+        #player = game[0]  # 'A' or 'B'
         moves = game[1:]  # e.g. '357600000'
-        
-        # Encode player
-        player_bit = torch.zeros(1) 
-        player_bit[0] = 0 if player == 'A' else 1
 
         # Encode moves
-        one_hot_sequence = torch.cat( tuple(TicTacToeStreamDataset._from_move_to_one_hot(move) for move in moves) )
+        return torch.cat( tuple(self._from_move_to_one_hot(move) for move in moves) )
 
-        return torch.cat((player_bit, one_hot_sequence))
     
     def __iter__(self):
         """Returns an iterator of input moves vs predicted next move.
@@ -126,13 +120,16 @@ class TicTacToeStreamDataset(IterableDataset):
         E.g. 'A357600000' -> '2'"""
         while True:
             game: str = self.game_generator()
-            print("Generated game:", game)
+            #print("Generated game:", game)
             inputs, output = self._extract_training_sample(game)
-            yield self._from_game_to_one_hot(inputs), self._from_move_to_one_hot(output)
+            yield self._from_game_to_one_hot(inputs).to(self.device), self._from_move_to_one_hot(output).to(self.device)
 
         
 if __name__ == '__main__':
-    TicTacToeIterable = TicTacToeStreamDataset(TicTacToe.generate_random_game)
+    accelerator_available = torch.accelerator.is_available()
+    device = torch.accelerator.current_accelerator() if accelerator_available else torch.device("cpu")
+
+    TicTacToeIterable = TicTacToeStreamDataset(TicTacToe.generate_random_game, device=device)
 
     # DataLoader on IterableDataset does not support shuffling
     dataloader = DataLoader(dataset=TicTacToeIterable, batch_size=3, num_workers=0)
