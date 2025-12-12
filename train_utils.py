@@ -2,14 +2,9 @@ from torch import nn
 import torch
 from torch.utils.data import DataLoader
 
-from pytorch_dataloader import TicTacToe, TicTacToeStreamDataset
-from pytorch_sample_nn import NeuralNetwork
 
-
-learning_rate = 1e-3
 batch_size = 64
-epochs = 3
-epoch_size = 100000
+EPOCH_SIZE = 100000
 
 def train_loop(dataloader: DataLoader, model: nn.Module, loss_fn: nn.modules.loss._Loss, optimizer: torch.optim.Optimizer):
     #size = len(dataloader.dataset)
@@ -31,7 +26,7 @@ def train_loop(dataloader: DataLoader, model: nn.Module, loss_fn: nn.modules.los
             loss, current = loss.item(), batch * batch_size + len(X)
             #print(f"loss: {loss:>7f}  [{current:>5d}]")
             print(".", end="")
-            if current >= epoch_size:
+            if current >= EPOCH_SIZE:
                 print()
                 break
 
@@ -53,8 +48,9 @@ def test_loop(dataloader: DataLoader, model: nn.Module, loss_fn: nn.modules.loss
             break # only one batch
 
     correct /= batch_size
-    print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
+    print(f"Validation Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
 
+# https://docs.pytorch.org/tutorials/beginner/saving_loading_models.html
 def save_checkpoint(model: nn.Module, optimizer: torch.optim.Optimizer, epoch: int, path: str):
     torch.save({
         'epoch': epoch,
@@ -74,35 +70,3 @@ def load_checkpoint(model: nn.Module, optimizer: torch.optim.Optimizer, checkpoi
         print("No checkpoint found, starting from scratch")
         epoch = 0
     return epoch
-
-if __name__ == '__main__':
-    accelerator_available = torch.accelerator.is_available()
-    #device = torch.accelerator.current_accelerator() if accelerator_available else torch.device("cpu")
-    device = torch.device("cpu")
-
-    TicTacToeIterable = TicTacToeStreamDataset(TicTacToe.generate_random_game, device=device)
-
-    # DataLoader on IterableDataset 
-    train_dataloader = DataLoader(dataset=TicTacToeIterable, batch_size=batch_size, num_workers=0)
-    test_dataloader = DataLoader(dataset=TicTacToeIterable, batch_size=batch_size)
-
-    # Init modele and optimizer
-    model = NeuralNetwork().to(device)
-    #optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
-    optimizer = torch.optim.Adam(model.parameters())
-
-    # load checkpoint (if available)
-    checkpoint_path = "checkpoint.pth"
-    epoch = load_checkpoint(model, optimizer, checkpoint_path, device)
-
-    loss_fn = nn.CrossEntropyLoss()
-
-    for _ in range(epochs):
-        epoch += 1
-        print(f"Epoch {epoch}\n-------------------------------")
-        train_loop(train_dataloader, model, loss_fn, optimizer)
-        test_loop(test_dataloader, model, loss_fn)
-    print("Done!")
-
-    # Save checkpoint for later resume
-    save_checkpoint(model, optimizer, epoch, checkpoint_path)
