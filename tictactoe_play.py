@@ -1,13 +1,17 @@
 from enum import StrEnum
 import numpy as np
+import torch
+
+from tictactoe import TicTacToe
+from tictactoe_nn_1 import TicTacToeNeuralNetwork_1, from_game_to_one_hot
 
 
 class GameResult(StrEnum):
     A_WINS = 'A'
     B_WINS = 'B'
-    DRAW = 'X'
+    DRAW   = 'X'
 
-class TicTacToe:
+class TicTacToeGame:
     """Tic Tac Toe game state and logic"""
     def __init__(self):
         self.moves = ""
@@ -15,51 +19,23 @@ class TicTacToe:
         self.game_over = False
         self.result = None
         self.user_is_A = True  # True if user is first player (X), False if second (O)
+        # Load the trained neural network model
+        self.model = TicTacToeNeuralNetwork_1()
+        try:
+            checkpoint = torch.load("ttt_nn_1.pth", map_location=torch.device('cpu'))
+            self.model.load_state_dict(checkpoint['model_state_dict'])
+            self.model.eval()
+        except FileNotFoundError:
+            print("Warning: Checkpoint file 'ttt_nn_1.pth' not found. Computer will use random moves.")
+            self.model = None
 
-    @staticmethod
-    def _game_result(moves: str) -> GameResult | None:
-        WINNING_POSITIONS = [
-            {1,2,3}, # top row
-            {4,5,6}, # middle row
-            {7,8,9}, # bottom row
-            {1,4,7}, # left row
-            {2,5,8}, # center row
-            {3,6,9}, # right row
-            {1,5,9}, # up-left to down-right diagonal
-            {3,5,7}  # up-right to down-left diagonal
-        ]
-
-        # get A moves (odd moves only)
-        A_moves = moves[0::2]
-        A_positions = set(int(m) for m in A_moves)
-        res = GameResult.A_WINS if any(wp <= A_positions for wp in WINNING_POSITIONS) else None
-        if res:
-            return res
-        # get B moves (even moves only)
-        B_moves = moves[1::2]
-        B_positions = set(int(m) for m in B_moves)
-        res = GameResult.B_WINS if any(wp <= B_positions for wp in WINNING_POSITIONS) else None
-        if res:
-            return res
-        return GameResult.DRAW if len(moves) == 9 else None
-
-    @staticmethod
-    def generate_random_game() -> str:
-        """generates a random valid Tic Tac Toe game string.
-        E.g. '357624B'"""
-        permutation = ''.join(np.random.choice(list('123456789'), size=9, replace=False))
-        for n in range(5, 10):  # shortest game is 5 moves (A wins), longest is 9
-            game_result = TicTacToe._game_result(permutation[:n])
-            if game_result is not None:
-                return permutation[:n] + game_result
-        return None # should not reach here
         
     def make_move(self, position: int) -> bool:
         """Make a move at the given position (1-9). Returns True if successful."""
         if self.game_over or str(position) in self.moves:
             return False
         self.moves += str(position)
-        self.result = self._game_result(self.moves)
+        self.result = TicTacToe.game_result(self.moves)
         if self.result:
             self.game_over = True
         else:
@@ -73,13 +49,31 @@ class TicTacToe:
         return sorted([int(p) for p in all_positions - used])
 
     def computer_move(self) -> int | None:
-        """Computer makes a random valid move. Returns the move made or None if no moves."""
+        """Computer makes a move using the neural network if available, otherwise random. 
+           Returns the move made or None if no moves."""
         valid = self.get_valid_moves()
-        if valid:
-            move = int(np.random.choice(valid))
-            self.make_move(move)
-            return move
-        return None
+        if not valid:
+            return None
+        
+        if self.model is not None:
+            # Use neural network to predict best move
+            input_str = self.moves.ljust(9, '0')
+            input_tensor = from_game_to_one_hot(input_str).unsqueeze(0)  # add batch dimension
+            with torch.no_grad():
+                logits = self.model(input_tensor)
+                probs = torch.softmax(logits, dim=1).squeeze()
+            # Get probabilities for valid positions (indices 0-8)
+            valid_indices = [int(p) - 1 for p in valid]
+            valid_probs = probs[valid_indices]
+            # Choose the move with highest probability
+            best_idx = torch.argmax(valid_probs)
+            chosen_pos = valid[best_idx]
+        else:
+            # Fallback to random move
+            chosen_pos = int(np.random.choice(valid))
+        
+        self.make_move(chosen_pos)
+        return chosen_pos
 
     def display_board(self):
         """Display the current board state."""
@@ -100,11 +94,9 @@ class TicTacToe:
         choice = input("Do you want to go first? (y/n): ").lower().strip()
         if choice == 'n': # computer starts
             self.user_is_A = False
-            #self.current_player = 'A'
             print("You are O (second player), Computer is X (first player)")
         else: # user starts
             self.user_is_A = True
-            #self.current_player = 'A'
             print("You are X (first player), Computer is O (second player)")
         
         while not self.game_over:
@@ -137,6 +129,6 @@ class TicTacToe:
 
 
 if __name__ == "__main__":
-    game = TicTacToe()
+    game = TicTacToeGame()
     game.play_game()
         

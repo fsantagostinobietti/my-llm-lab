@@ -4,9 +4,9 @@ import random
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from torch.utils.data import Dataset, IterableDataset
+from torch.utils.data import IterableDataset
 
-from tictactoe_game import TicTacToe
+from tictactoe import TicTacToe
 from train_utils import load_checkpoint, save_checkpoint, test_loop, train_loop
 
 #
