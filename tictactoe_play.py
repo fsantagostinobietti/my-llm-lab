@@ -1,4 +1,5 @@
 from enum import StrEnum
+import random
 import numpy as np
 import torch
 
@@ -13,7 +14,7 @@ class GameResult(StrEnum):
 
 class TicTacToeGame:
     """Tic Tac Toe game state and logic"""
-    def __init__(self):
+    def __init__(self, model_checkpoint: str, device: torch.device = torch.device('cpu')):
         self.moves = ""
         self.current_player = 'A'  # 'A' for first player, 'B' for second
         self.game_over = False
@@ -22,11 +23,11 @@ class TicTacToeGame:
         # Load the trained neural network model
         self.model = TicTacToeNeuralNetwork_1()
         try:
-            checkpoint = torch.load("ttt_nn_1.pth", map_location=torch.device('cpu'))
+            checkpoint = torch.load(model_checkpoint, map_location=device)
             self.model.load_state_dict(checkpoint['model_state_dict'])
             self.model.eval()
         except FileNotFoundError:
-            print("Warning: Checkpoint file 'ttt_nn_1.pth' not found. Computer will use random moves.")
+            print(f"Warning: Checkpoint file '{model_checkpoint}' not found. Computer will use random moves.")
             self.model = None
 
         
@@ -65,8 +66,11 @@ class TicTacToeGame:
             # Get probabilities for valid positions (indices 0-8)
             valid_indices = [int(p) - 1 for p in valid]
             valid_probs = probs[valid_indices]
-            # Choose the move with highest probability
-            best_idx = torch.argmax(valid_probs)
+            # Normalize probabilities to sum to 1
+            valid_probs = valid_probs / valid_probs.sum() # optional, to display probabilities
+            print("valid_probs:", valid_probs)
+            # Choose the move with highest probability, but very first move is random
+            best_idx = random.randint(0, len(valid)-1) if len(self.moves)==0 else torch.argmax(valid_probs)
             chosen_pos = valid[best_idx]
         else:
             # Fallback to random move
@@ -77,7 +81,8 @@ class TicTacToeGame:
 
     def display_board(self):
         """Display the current board state."""
-        board = [' ']*9
+        # board placeholders: ¹²³⁴⁵⁶⁷⁸⁹  ₁₂₃₄₅₆₇₈₉
+        board = list("¹²³⁴⁵⁶⁷⁸⁹")
         for i, move in enumerate(self.moves):
             pos = int(move) - 1
             board[pos] = 'X' if i % 2 == 0 else 'O'
@@ -129,6 +134,6 @@ class TicTacToeGame:
 
 
 if __name__ == "__main__":
-    game = TicTacToeGame()
+    game = TicTacToeGame(model_checkpoint="ttt_nn_1.pth")
     game.play_game()
         
