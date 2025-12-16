@@ -14,12 +14,12 @@ from train_utils import load_checkpoint, save_checkpoint, test_loop, train_loop
 #
 class TicTacToeNeuralNetwork_1(nn.Module):
     """Input: moves one hot encoded (9x9 inputs)"""
-    def __init__(self):
+    def __init__(self, layer_sz: int):
         super().__init__()
         self.linear_relu_stack = nn.Sequential(
-            nn.Linear(9*9, 512),
+            nn.Linear(9*9, layer_sz),
             nn.ReLU(),
-            nn.Linear(512, 9),
+            nn.Linear(layer_sz, 9),
         )
 
     def forward(self, x):
@@ -90,7 +90,7 @@ class TicTacToeStreamDataset(IterableDataset):
             yield from_game_to_one_hot(inputs).to(self.device), from_move_to_one_hot(output).to(self.device)
 
 
-def train_nn_1(epochs: int, batch_size: int):
+def train_nn_1(layer_sz: int, epochs: int, batch_size: int):
     accelerator_available = torch.accelerator.is_available()
     #device = torch.accelerator.current_accelerator() if accelerator_available else torch.device("cpu")
     device = torch.device("cpu")
@@ -102,7 +102,7 @@ def train_nn_1(epochs: int, batch_size: int):
     test_dataloader = DataLoader(dataset=TicTacToeIterable, batch_size=batch_size)
 
     # Init modele and optimizer
-    model = TicTacToeNeuralNetwork_1().to(device)
+    model = TicTacToeNeuralNetwork_1(layer_sz).to(device)
     #optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
     optimizer = torch.optim.Adam(model.parameters())
 
@@ -125,4 +125,4 @@ def train_nn_1(epochs: int, batch_size: int):
 
 if __name__ == '__main__':
     # run training session
-    train_nn_1(epochs=3, batch_size=64)
+    train_nn_1(layer_sz=16, epochs=300, batch_size=64)

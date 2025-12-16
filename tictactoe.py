@@ -1,3 +1,17 @@
+"""
+Tic-Tac-Toe
+
+Games by Outcome (Total 255,168):
+* 131,184: Games won by the first player (X).
+* 77,904: Games won by the second player (O).
+* 46,080: Games ending in a draw. 
+
+Unique Games (Considering Symmetry)
+* 26,830: The number of unique games when you consider rotations and reflections of the board as the same game.
+
+Final Outcome (Perfect Play)
+* 1: If both players play perfectly, the game always results in a draw, meaning there's only one final, optimal outcome. 
+"""
 from enum import StrEnum
 import numpy as np
 

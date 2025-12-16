@@ -7,6 +7,80 @@ from tictactoe import TicTacToe
 from tictactoe_nn_1 import TicTacToeNeuralNetwork_1, from_game_to_one_hot
 
 
+class Player:
+    """Base class for all players."""
+
+    @staticmethod
+    def get_valid_moves(moves: str) -> list[int]:
+        """Return list of valid moves (1-9)."""
+        all_positions = set('123456789')
+        used = set(moves)
+        return sorted([int(p) for p in all_positions - used])
+    
+    def next_move(self, game_moves: str) -> int:
+        """Make a move in the game. Returns the position (1-9)."""
+        raise NotImplementedError
+
+class HumanPlayer(Player):
+    """Human player that makes moves via user input."""
+    def next_move(self, game_moves: str) -> int:
+        while True:
+            try:
+                move = int(input("Your move (1-9): "))
+                if move in self.get_valid_moves(game_moves):
+                    return move
+                else:
+                    print("Invalid move. Position taken.")
+            except ValueError:
+                print("Invalid input. Enter a number 1-9.")
+
+class RandomPlayer(Player):
+    """Random player that makes random valid moves."""
+    def next_move(self, game_moves: str) -> int:
+        valid = self.get_valid_moves(game_moves)
+        return random.choice(valid) if valid else None
+
+class AIPlayer(Player):
+    """AI player that makes moves using a neural network."""
+    def __init__(self, model=None, checkpoint=None, device: torch.device = torch.device('cpu')):
+        if model is not None:
+            self.model = model
+        elif checkpoint is not None:
+            self.model = TicTacToeNeuralNetwork_1()
+            try:
+                checkpoint_data = torch.load(checkpoint, map_location=device)
+                self.model.load_state_dict(checkpoint_data['model_state_dict'])
+                self.model.eval()
+            except FileNotFoundError:
+                print(f"Warning: Checkpoint file '{checkpoint}' not found. AI will use random moves.")
+                self.model = None
+        else:
+            self.model = None
+
+    def next_move(self, game_moves: str) -> int:
+        valid = self.get_valid_moves(game_moves)
+        if not valid:
+            return None
+        
+        if self.model is not None:
+            # Use neural network to predict best move
+            input_str = game_moves.ljust(9, '0')
+            input_tensor = from_game_to_one_hot(input_str)
+            with torch.no_grad():
+                logits = self.model(input_tensor)
+                probs = torch.softmax(logits, dim=0)
+            # Get probabilities for valid positions
+            valid_indices = [int(p) - 1 for p in valid]
+            valid_probs = probs[valid_indices]
+            # Normalize probabilities
+            valid_probs = valid_probs / valid_probs.sum()
+            # Choose the move with highest probability
+            best_idx = torch.argmax(valid_probs)
+            return valid[best_idx]
+        else:
+            # Fallback to random move
+            return random.choice(valid)
+
 class GameResult(StrEnum):
     A_WINS = 'A'
     B_WINS = 'B'
@@ -14,22 +88,11 @@ class GameResult(StrEnum):
 
 class TicTacToeGame:
     """Tic Tac Toe game state and logic"""
-    def __init__(self, model_checkpoint: str, device: torch.device = torch.device('cpu')):
+    def __init__(self):
         self.moves = ""
         self.current_player = 'A'  # 'A' for first player, 'B' for second
         self.game_over = False
         self.result = None
-        self.user_is_A = True  # True if user is first player (X), False if second (O)
-        # Load the trained neural network model
-        self.model = TicTacToeNeuralNetwork_1()
-        try:
-            checkpoint = torch.load(model_checkpoint, map_location=device)
-            self.model.load_state_dict(checkpoint['model_state_dict'])
-            self.model.eval()
-        except FileNotFoundError:
-            print(f"Warning: Checkpoint file '{model_checkpoint}' not found. Computer will use random moves.")
-            self.model = None
-
         
     def make_move(self, position: int) -> bool:
         """Make a move at the given position (1-9). Returns True if successful."""
@@ -42,42 +105,6 @@ class TicTacToeGame:
         else:
             self.current_player = 'B' if self.current_player == 'A' else 'A'
         return True
-
-    def get_valid_moves(self) -> list[int]:
-        """Return list of valid moves (1-9)."""
-        all_positions = set('123456789')
-        used = set(self.moves)
-        return sorted([int(p) for p in all_positions - used])
-
-    def computer_move(self) -> int | None:
-        """Computer makes a move using the neural network if available, otherwise random. 
-           Returns the move made or None if no moves."""
-        valid = self.get_valid_moves()
-        if not valid:
-            return None
-        
-        if self.model is not None:
-            # Use neural network to predict best move
-            input_str = self.moves.ljust(9, '0')
-            input_tensor = from_game_to_one_hot(input_str).unsqueeze(0)  # add batch dimension
-            with torch.no_grad():
-                logits = self.model(input_tensor)
-                probs = torch.softmax(logits, dim=1).squeeze()
-            # Get probabilities for valid positions (indices 0-8)
-            valid_indices = [int(p) - 1 for p in valid]
-            valid_probs = probs[valid_indices]
-            # Normalize probabilities to sum to 1
-            valid_probs = valid_probs / valid_probs.sum() # optional, to display probabilities
-            print("valid_probs:", valid_probs)
-            # Choose the move with highest probability, but very first move is random
-            best_idx = random.randint(0, len(valid)-1) if len(self.moves)==0 else torch.argmax(valid_probs)
-            chosen_pos = valid[best_idx]
-        else:
-            # Fallback to random move
-            chosen_pos = int(np.random.choice(valid))
-        
-        self.make_move(chosen_pos)
-        return chosen_pos
 
     def display_board(self):
         """Display the current board state."""
@@ -94,46 +121,40 @@ class TicTacToeGame:
         print(f" {board[6]} | {board[7]} | {board[8]} ")
         print()
 
-    def play_game(self):
-        """Start the interactive game loop."""
-        choice = input("Do you want to go first? (y/n): ").lower().strip()
-        if choice == 'n': # computer starts
-            self.user_is_A = False
-            print("You are O (second player), Computer is X (first player)")
-        else: # user starts
-            self.user_is_A = True
-            print("You are X (first player), Computer is O (second player)")
-        
+    def play_game(self, player_A: Player, player_B: Player) -> GameResult:
+        """Start the game loop with the given players."""
+        self.current_player = 'A'
         while not self.game_over:
             self.display_board()
-            is_user_turn = (self.current_player == 'A' and self.user_is_A) or (self.current_player == 'B' and not self.user_is_A)
-            if is_user_turn:
-                try:
-                    move = int(input("Your move (1-9): "))
-                    if move < 1 or move > 9:
-                        print("Invalid move. Choose 1-9.")
-                        continue
-                    if not self.make_move(move):
-                        print("Invalid move. Position taken.")
-                        continue
-                except ValueError:
-                    print("Invalid input. Enter a number 1-9.")
-                    continue
-            else:  # computer
-                print("Computer's turn...")
-                move = self.computer_move()
-                print(f"Computer plays {move}")
+            if self.current_player == 'A':
+                move = player_A.next_move(self.moves)
+            else:
+                move = player_B.next_move(self.moves)
+            if move is not None:
+                # Print move for non-human players
+                if (self.current_player == 'A' and not isinstance(player_A, HumanPlayer)) or \
+                   (self.current_player == 'B' and not isinstance(player_B, HumanPlayer)):
+                    print(f"Player {self.current_player} plays {move}")
+                self.make_move(move)
         self.display_board()
         if self.result == GameResult.DRAW:
             print("It's a draw!")
-        elif (self.result == GameResult.A_WINS and self.user_is_A) or (self.result == GameResult.B_WINS and not self.user_is_A):
-            print("You win!")
+        elif self.result == GameResult.A_WINS:
+            print("Player A wins!")
         else:
-            print("Computer wins!")
+            print("Player B wins!")
+        return self.result
             
 
 
 if __name__ == "__main__":
-    game = TicTacToeGame(model_checkpoint="ttt_nn_1.pth")
-    game.play_game()
-        
+    game = TicTacToeGame()
+    # # Example: Human vs AI
+    # player1 = HumanPlayer()
+    # player2 = AIPlayer(checkpoint="ttt_nn_1.pth")
+    # game.play_game(player1, player2)
+    
+    # Example: Random vs AI
+    playerA = RandomPlayer()
+    playerB = AIPlayer(checkpoint="ttt_nn_1.pth")
+    game.play_game(playerA, playerB)
