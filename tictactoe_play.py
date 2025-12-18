@@ -1,6 +1,5 @@
 from enum import StrEnum
 import random
-import numpy as np
 import torch
 
 from tictactoe import TicTacToe
@@ -42,11 +41,9 @@ class RandomPlayer(Player):
 
 class AIPlayer(Player):
     """AI player that makes moves using a neural network."""
-    def __init__(self, model=None, checkpoint=None, device: torch.device = torch.device('cpu')):
-        if model is not None:
-            self.model = model
-        elif checkpoint is not None:
-            self.model = TicTacToeNeuralNetwork_1()
+    def __init__(self, model, checkpoint=None, device: torch.device = torch.device('cpu')):
+        self.model = model
+        if checkpoint is not None:
             try:
                 checkpoint_data = torch.load(checkpoint, map_location=device)
                 self.model.load_state_dict(checkpoint_data['model_state_dict'])
@@ -54,8 +51,6 @@ class AIPlayer(Player):
             except FileNotFoundError:
                 print(f"Warning: Checkpoint file '{checkpoint}' not found. AI will use random moves.")
                 self.model = None
-        else:
-            self.model = None
 
     def next_move(self, game_moves: str) -> int:
         valid = self.get_valid_moves(game_moves)
@@ -121,28 +116,31 @@ class TicTacToeGame:
         print(f" {board[6]} | {board[7]} | {board[8]} ")
         print()
 
-    def play_game(self, player_A: Player, player_B: Player) -> GameResult:
+    def play_game(self, player_A: Player, player_B: Player, print_output: bool = True) -> GameResult:
         """Start the game loop with the given players."""
         self.current_player = 'A'
         while not self.game_over:
-            self.display_board()
+            if print_output:
+                self.display_board()
             if self.current_player == 'A':
                 move = player_A.next_move(self.moves)
             else:
                 move = player_B.next_move(self.moves)
             if move is not None:
-                # Print move for non-human players
-                if (self.current_player == 'A' and not isinstance(player_A, HumanPlayer)) or \
-                   (self.current_player == 'B' and not isinstance(player_B, HumanPlayer)):
-                    print(f"Player {self.current_player} plays {move}")
+                if print_output:
+                    # Print move for non-human players
+                    if (self.current_player == 'A' and not isinstance(player_A, HumanPlayer)) or \
+                    (self.current_player == 'B' and not isinstance(player_B, HumanPlayer)):
+                        print(f"Player {self.current_player} plays {move}")
                 self.make_move(move)
-        self.display_board()
-        if self.result == GameResult.DRAW:
-            print("It's a draw!")
-        elif self.result == GameResult.A_WINS:
-            print("Player A wins!")
-        else:
-            print("Player B wins!")
+        if print_output:
+            self.display_board()
+            if self.result == GameResult.DRAW:
+                print("It's a draw!")
+            elif self.result == GameResult.A_WINS:
+                print("Player A wins!")
+            else:
+                print("Player B wins!")
         return self.result
             
 
@@ -154,7 +152,14 @@ if __name__ == "__main__":
     # player2 = AIPlayer(checkpoint="ttt_nn_1.pth")
     # game.play_game(player1, player2)
     
-    # Example: Random vs AI
+    # Example: Random player vs AI player
     playerA = RandomPlayer()
-    playerB = AIPlayer(checkpoint="ttt_nn_1.pth")
-    game.play_game(playerA, playerB)
+    playerB = AIPlayer(model=TicTacToeNeuralNetwork_1(layer_sz=512), checkpoint="ttt_nn_#ttt_nn_1.pth")
+    stats: dict[str, set] = {GameResult.A_WINS: set(), GameResult.B_WINS: set(), GameResult.DRAW: set()}
+    for _ in range(10000):
+        game = TicTacToeGame()
+        result = game.play_game(playerA, playerB, print_output=False)
+        stats[result].add(game.moves)
+    print("Stats:")
+    for key, value in stats.items():
+        print(f"  {key}: {len(value)}")
