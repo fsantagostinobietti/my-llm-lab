@@ -76,6 +76,60 @@ class AIPlayer(Player):
             # Fallback to random move
             return random.choice(valid)
 
+class PerfectPlayer(Player):
+    """Perfect player that uses minimax to never lose and maximize wins."""
+    
+    # def __init__(self, player: str):
+    #     self.player = player  # 'A' or 'B'
+    
+    def next_move(self, game_moves: str) -> int:
+        valid = self.get_valid_moves(game_moves)
+        if not valid:
+            return None
+        
+        # Compute scores for each valid move using minimax
+        player = 'A' if len(game_moves) % 2 == 0 else 'B'
+        scores = []
+        for move in valid:
+            new_moves = game_moves + str(move)
+            score = self.minimax(new_moves, player)
+            scores.append((move, score))
+        
+        # Find the maximum score
+        max_score = max(s for m, s in scores)
+        
+        # Choose the first move with the maximum score
+        for move, score in scores:
+            if score == max_score:
+                return move
+    
+    @staticmethod
+    def minimax(moves, maximizer):
+        result = TicTacToe.game_result(moves)
+        if result:
+            if result == GameResult.DRAW:
+                return 0
+            elif result == GameResult.A_WINS:
+                return 1 if maximizer == 'A' else -1
+            elif result == GameResult.B_WINS:
+                return 1 if maximizer == 'B' else -1
+        
+        valid_moves = Player.get_valid_moves(moves)
+        if not valid_moves:
+            return 0
+        
+        scores = []
+        for move in valid_moves:
+            new_moves = moves + str(move)
+            score = PerfectPlayer.minimax(new_moves, maximizer)
+            scores.append(score)
+        
+        current_player = 'A' if len(moves) % 2 == 0 else 'B'
+        if current_player == maximizer:
+            return max(scores)
+        else:
+            return min(scores)
+
 class GameResult(StrEnum):
     A_WINS = 'A'
     B_WINS = 'B'
@@ -147,19 +201,24 @@ class TicTacToeGame:
 
 if __name__ == "__main__":
     game = TicTacToeGame()
+    # Example: Perfect player vs Random player
+    playerA = HumanPlayer()
+    playerB = PerfectPlayer()
+    game.play_game(playerA, playerB)
+
     # # Example: Human vs AI
     # player1 = HumanPlayer()
     # player2 = AIPlayer(checkpoint="ttt_nn_1.pth")
     # game.play_game(player1, player2)
     
-    # Example: Random player vs AI player
-    playerA = RandomPlayer()
-    playerB = AIPlayer(model=TicTacToeNeuralNetwork_1(layer_sz=512), checkpoint="ttt_nn_#ttt_nn_1.pth")
-    stats: dict[str, set] = {GameResult.A_WINS: set(), GameResult.B_WINS: set(), GameResult.DRAW: set()}
-    for _ in range(10000):
-        game = TicTacToeGame()
-        result = game.play_game(playerA, playerB, print_output=False)
-        stats[result].add(game.moves)
-    print("Stats:")
-    for key, value in stats.items():
-        print(f"  {key}: {len(value)}")
+    # # Example: Random player vs AI player
+    # playerA = RandomPlayer()
+    # playerB = AIPlayer(model=TicTacToeNeuralNetwork_1(layer_sz=512), checkpoint="ttt_nn_#ttt_nn_1.pth")
+    # stats: dict[str, set] = {GameResult.A_WINS: set(), GameResult.B_WINS: set(), GameResult.DRAW: set()}
+    # for _ in range(10000):
+    #     game = TicTacToeGame()
+    #     result = game.play_game(playerA, playerB, print_output=False)
+    #     stats[result].add(game.moves)
+    # print("Stats:")
+    # for key, value in stats.items():
+    #     print(f"  {key}: {len(value)}")
