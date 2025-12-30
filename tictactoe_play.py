@@ -1,9 +1,11 @@
 from enum import StrEnum
+import functools
 import random
 import torch
 
+from nn_utils import from_game_to_one_hot
 from tictactoe import TicTacToe
-from tictactoe_nn_1 import TicTacToeNeuralNetwork_1, from_game_to_one_hot
+from tictactoe_nn_1 import TicTacToeNeuralNetwork_1
 
 
 class Player:
@@ -79,9 +81,6 @@ class AIPlayer(Player):
 class PerfectPlayer(Player):
     """Perfect player that uses minimax to never lose and maximize wins."""
     
-    # def __init__(self, player: str):
-    #     self.player = player  # 'A' or 'B'
-    
     def next_move(self, game_moves: str) -> int:
         valid = self.get_valid_moves(game_moves)
         if not valid:
@@ -104,6 +103,7 @@ class PerfectPlayer(Player):
                 return move
     
     @staticmethod
+    @functools.cache   #lru_cache(maxsize=600000)
     def minimax(moves, maximizer):
         result = TicTacToe.game_result(moves)
         if result:
@@ -197,19 +197,33 @@ class TicTacToeGame:
                 print("Player B wins!")
         return self.result
             
-
+def generate_game_against_perfect_player() -> str:
+    """Generate a random game against a perfect player.
+    Returns the game string with moves followed by result."""
+    game = TicTacToeGame()
+    if random.choice([True, False]):
+        playerA = PerfectPlayer()
+        playerB = RandomPlayer()
+    else:
+        playerA = RandomPlayer()
+        playerB = PerfectPlayer()
+    game.play_game(playerA, playerB, print_output=False)
+    return game.moves + game.result
 
 if __name__ == "__main__":
-    game = TicTacToeGame()
-    # Example: Perfect player vs Random player
-    playerA = HumanPlayer()
-    playerB = PerfectPlayer()
-    game.play_game(playerA, playerB)
+    # for _ in range(10):
+    #     game = TicTacToeGame()
+    #     playerA = RandomPlayer()
+    #     playerB = PerfectPlayer()
+    #     game.play_game(playerA, playerB, print_output=False)
+    #     print(game.moves + game.result)
+    # print(PerfectPlayer.minimax.cache_info())
 
-    # # Example: Human vs AI
-    # player1 = HumanPlayer()
-    # player2 = AIPlayer(checkpoint="ttt_nn_1.pth")
-    # game.play_game(player1, player2)
+    # Example: Human vs AI
+    game = TicTacToeGame()
+    playerA = HumanPlayer()
+    playerB = AIPlayer(model=TicTacToeNeuralNetwork_1(layer_sz=8), checkpoint="ttt_nn_1.pth")
+    game.play_game(playerA, playerB)
     
     # # Example: Random player vs AI player
     # playerA = RandomPlayer()
