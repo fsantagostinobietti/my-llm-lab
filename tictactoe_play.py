@@ -6,6 +6,7 @@ import torch
 from nn_utils import from_game_to_one_hot
 from tictactoe import TicTacToe
 from tictactoe_nn_1 import TicTacToeNeuralNetwork_1
+from tictactoe_tran_1 import TicTacToeTransformer_1
 
 
 class Player:
@@ -219,20 +220,27 @@ if __name__ == "__main__":
     #     print(game.moves + game.result)
     # print(PerfectPlayer.minimax.cache_info())
 
-    # Example: Human vs AI
-    game = TicTacToeGame()
-    playerA = HumanPlayer()
-    playerB = AIPlayer(model=TicTacToeNeuralNetwork_1(layer_sz=8), checkpoint="ttt_nn_1.pth")
-    game.play_game(playerA, playerB)
+    # # Example: Human vs AI (neural network)
+    # game = TicTacToeGame()
+    # playerA = HumanPlayer()
+    # playerB = AIPlayer(model=TicTacToeNeuralNetwork_1(layer_sz=8), checkpoint="ttt_nn_1.pth")
+    # game.play_game(playerA, playerB)
+
+    # # Example: Human vs AI (transformer)
+    # game = TicTacToeGame()
+    # playerA = HumanPlayer()
+    # playerB = AIPlayer(model=TicTacToeTransformer_1(layer_sz=8), checkpoint="ttt_tran_1.pth")
+    # game.play_game(playerA, playerB)
     
-    # # Example: Random player vs AI player
-    # playerA = RandomPlayer()
-    # playerB = AIPlayer(model=TicTacToeNeuralNetwork_1(layer_sz=512), checkpoint="ttt_nn_#ttt_nn_1.pth")
-    # stats: dict[str, set] = {GameResult.A_WINS: set(), GameResult.B_WINS: set(), GameResult.DRAW: set()}
-    # for _ in range(10000):
-    #     game = TicTacToeGame()
-    #     result = game.play_game(playerA, playerB, print_output=False)
-    #     stats[result].add(game.moves)
-    # print("Stats:")
-    # for key, value in stats.items():
-    #     print(f"  {key}: {len(value)}")
+    # Example: Random player vs AI player
+    playerA = RandomPlayer()
+    playerB = AIPlayer(model=TicTacToeTransformer_1(layer_sz=4), checkpoint="ttt_tran_1.pth")
+    #playerB = AIPlayer(model=TicTacToeNeuralNetwork_1(layer_sz=4), checkpoint="ttt_nn_#1_layer_4_epochs_300.pth")
+    stats: dict[str, set] = {GameResult.A_WINS: set(), GameResult.B_WINS: set(), GameResult.DRAW: set()}
+    for _ in range(10000):
+        game = TicTacToeGame()
+        result = game.play_game(playerA, playerB, print_output=False)
+        stats[result].add(game.moves)
+    print("Stats:")
+    for key, value in stats.items():
+        print(f"  {key}: {len(value)}")

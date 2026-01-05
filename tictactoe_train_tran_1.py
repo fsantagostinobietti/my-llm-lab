@@ -7,8 +7,8 @@ from torch.utils.data import DataLoader
 from torch.utils.data import IterableDataset
 
 from nn_utils import from_game_to_one_hot, from_move_to_one_hot
-from tictactoe_nn_1 import TicTacToeNeuralNetwork_1
 from tictactoe_play import generate_game_against_perfect_player
+from tictactoe_tran_1 import TicTacToeTransformer_1
 from train_utils import load_checkpoint, save_checkpoint, test_loop, train_loop
 
 
@@ -57,7 +57,7 @@ class TicTacToeStreamDataset(IterableDataset):
             yield from_game_to_one_hot(inputs).to(self.device), from_move_to_one_hot(output).to(self.device)
 
 
-def train_nn_1(layer_sz: int, epochs: int, batch_size: int):
+def train_transformer_1(layer_sz: int, epochs: int, batch_size: int):
     #accelerator_available = torch.accelerator.is_available()
     #device = torch.accelerator.current_accelerator() if accelerator_available else torch.device("cpu")
     device = torch.device("cpu")
@@ -71,11 +71,11 @@ def train_nn_1(layer_sz: int, epochs: int, batch_size: int):
     test_dataloader = DataLoader(dataset=TicTacToeIterable, batch_size=batch_size)
 
     # Init modele and optimizer
-    model = TicTacToeNeuralNetwork_1(layer_sz).to(device)
+    model = TicTacToeTransformer_1(layer_sz).to(device)
     optimizer = torch.optim.Adam(model.parameters())
 
     # load checkpoint (if available)
-    checkpoint_path = "ttt_nn_1.pth"
+    checkpoint_path = "ttt_tran_1.pth"
     epoch = load_checkpoint(model, optimizer, checkpoint_path, device)
 
     loss_fn = nn.CrossEntropyLoss()
@@ -93,4 +93,4 @@ def train_nn_1(layer_sz: int, epochs: int, batch_size: int):
 
 if __name__ == '__main__':
     # run training session
-    train_nn_1(layer_sz=4, epochs=300, batch_size=64)
+    train_transformer_1(layer_sz=4, epochs=300, batch_size=64)
