@@ -7,6 +7,7 @@ from nn_utils import from_game_to_one_hot
 from tictactoe import TicTacToe
 from tictactoe_nn_1 import TicTacToeNeuralNetwork_1
 from tictactoe_tran_1 import TicTacToeTransformer_1
+from tictactoe_tran_2 import TicTacToeTransformer_2
 
 
 class Player:
@@ -234,7 +235,8 @@ if __name__ == "__main__":
     
     # Example: Random player vs AI player
     playerA = RandomPlayer()
-    playerB = AIPlayer(model=TicTacToeTransformer_1(layer_sz=4), checkpoint="ttt_tran_1.pth")
+    playerB = AIPlayer(model=TicTacToeTransformer_2(), checkpoint="ttt_tran_2.pth")
+    #playerB = AIPlayer(model=TicTacToeTransformer_1(layer_sz=4), checkpoint="ttt_tran_1.pth")
     #playerB = AIPlayer(model=TicTacToeNeuralNetwork_1(layer_sz=4), checkpoint="ttt_nn_#1_layer_4_epochs_300.pth")
     stats: dict[str, set] = {GameResult.A_WINS: set(), GameResult.B_WINS: set(), GameResult.DRAW: set()}
     for _ in range(10000):

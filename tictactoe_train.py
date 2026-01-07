@@ -10,6 +10,7 @@ from nn_utils import from_game_to_one_hot, from_move_to_one_hot
 from tictactoe_nn_1 import TicTacToeNeuralNetwork_1
 from tictactoe_play import generate_game_against_perfect_player
 from tictactoe_tran_1 import TicTacToeTransformer_1
+from tictactoe_tran_2 import TicTacToeTransformer_2
 from train_utils import load_checkpoint, save_checkpoint, test_loop, train_loop
 
 
@@ -96,5 +97,8 @@ if __name__ == '__main__':
     # # run training session for TicTacToeNeuralNetwork_1
     # train_model(TicTacToeNeuralNetwork_1(layer_sz=4), epochs=3, batch_size=64, checkpoint_path="ttt_nn_1.pth")
     
-    # run training session for TicTacToeTransformer_1
-    train_model(TicTacToeTransformer_1(layer_sz=4), epochs=3, batch_size=64, checkpoint_path="ttt_tran_1.pth")
+    # # run training session for TicTacToeTransformer_1
+    # train_model(TicTacToeTransformer_1(layer_sz=4), epochs=3, batch_size=64, checkpoint_path="ttt_tran_1.pth")
+
+    # run training session for TicTacToeTransformer_2
+    train_model(TicTacToeTransformer_2(), epochs=300, batch_size=64, checkpoint_path="ttt_tran_2.pth")
