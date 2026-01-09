@@ -10,7 +10,7 @@ from nn_utils import from_game_to_one_hot, from_move_to_one_hot
 from tictactoe_nn_1 import TicTacToeNeuralNetwork_1
 from tictactoe_play import generate_game_against_perfect_player
 from tictactoe_tran_1 import TicTacToeTransformer_1
-from tictactoe_tran_2 import TicTacToeTransformer_2
+from tictactoe_lm_1 import TicTacToeLM_1
 from train_utils import load_checkpoint, save_checkpoint, test_loop, train_loop
 
 
@@ -19,10 +19,11 @@ from train_utils import load_checkpoint, save_checkpoint, test_loop, train_loop
 #
 class TicTacToeStreamDataset(IterableDataset):
     """dataset from a stream for Tic Tac Toe games"""
-    def __init__(self, game_generator, device: torch.device):
+    def __init__(self, game_generator, device: torch.device, game_selector: str | None = None):
         super().__init__()
         self.game_generator = game_generator
         self.device = device
+        self.game_selector = game_selector
 
     def _extract_training_sample(self, game: str) -> tuple[str, str]:
         """Extract a training sample from a game string.
@@ -54,6 +55,9 @@ class TicTacToeStreamDataset(IterableDataset):
         E.g. '357600000' -> '2'"""
         while True:
             game: str = self.game_generator()
+            # skip games not matching 'game_selector'
+            if self.game_selector and game[-1] not in list(self.game_selector):
+                continue
             #print("Generated game:", game)
             inputs, output = self._extract_training_sample(game)
             yield from_game_to_one_hot(inputs).to(self.device), from_move_to_one_hot(output).to(self.device)
@@ -65,7 +69,7 @@ def train_model(model: nn.Module, epochs: int, batch_size: int, checkpoint_path:
     device = torch.device("cpu")
 
     #TicTacToeIterable = TicTacToeStreamDataset(TicTacToe.generate_random_game, device=device)
-    TicTacToeIterable = TicTacToeStreamDataset(generate_game_against_perfect_player, device=device)
+    TicTacToeIterable = TicTacToeStreamDataset(generate_game_against_perfect_player, device=device) #, game_selector="B")
     
 
     # DataLoader on IterableDataset 
@@ -74,7 +78,7 @@ def train_model(model: nn.Module, epochs: int, batch_size: int, checkpoint_path:
 
     # Init modele and optimizer
     model = model.to(device)
-    optimizer = torch.optim.Adam(model.parameters())
+    optimizer = torch.optim.AdamW(model.parameters()) #torch.optim.Adam(model.parameters())
 
     # load checkpoint (if available)
     epoch = load_checkpoint(model, optimizer, checkpoint_path, device)
@@ -100,5 +104,5 @@ if __name__ == '__main__':
     # # run training session for TicTacToeTransformer_1
     # train_model(TicTacToeTransformer_1(layer_sz=4), epochs=3, batch_size=64, checkpoint_path="ttt_tran_1.pth")
 
-    # run training session for TicTacToeTransformer_2
-    train_model(TicTacToeTransformer_2(), epochs=300, batch_size=64, checkpoint_path="ttt_tran_2.pth")
+    # run training session for TicTacToeLM_1
+    train_model(TicTacToeLM_1(), epochs=30, batch_size=64, checkpoint_path="ttt_lm_1.pth")

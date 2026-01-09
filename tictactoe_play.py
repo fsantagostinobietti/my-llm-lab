@@ -7,7 +7,7 @@ from nn_utils import from_game_to_one_hot
 from tictactoe import TicTacToe
 from tictactoe_nn_1 import TicTacToeNeuralNetwork_1
 from tictactoe_tran_1 import TicTacToeTransformer_1
-from tictactoe_tran_2 import TicTacToeTransformer_2
+from tictactoe_lm_1 import TicTacToeLM_1
 
 
 class Player:
@@ -213,13 +213,6 @@ def generate_game_against_perfect_player() -> str:
     return game.moves + game.result
 
 if __name__ == "__main__":
-    # for _ in range(10):
-    #     game = TicTacToeGame()
-    #     playerA = RandomPlayer()
-    #     playerB = PerfectPlayer()
-    #     game.play_game(playerA, playerB, print_output=False)
-    #     print(game.moves + game.result)
-    # print(PerfectPlayer.minimax.cache_info())
 
     # # Example: Human vs AI (neural network)
     # game = TicTacToeGame()
@@ -232,10 +225,17 @@ if __name__ == "__main__":
     # playerA = HumanPlayer()
     # playerB = AIPlayer(model=TicTacToeTransformer_1(layer_sz=8), checkpoint="ttt_tran_1.pth")
     # game.play_game(playerA, playerB)
-    
+
+    # # Example: Human vs AI (LM)
+    # game = TicTacToeGame()
+    # playerA = HumanPlayer()
+    # playerB = AIPlayer(model=TicTacToeLM_1(), checkpoint="ttt_lm_1.pth")
+    # game.play_game(playerA, playerB)
+
     # Example: Random player vs AI player
     playerA = RandomPlayer()
-    playerB = AIPlayer(model=TicTacToeTransformer_2(), checkpoint="ttt_tran_2.pth")
+    #playerB = PerfectPlayer()
+    playerB = AIPlayer(model=TicTacToeLM_1(), checkpoint="ttt_lm_1.pth")
     #playerB = AIPlayer(model=TicTacToeTransformer_1(layer_sz=4), checkpoint="ttt_tran_1.pth")
     #playerB = AIPlayer(model=TicTacToeNeuralNetwork_1(layer_sz=4), checkpoint="ttt_nn_#1_layer_4_epochs_300.pth")
     stats: dict[str, set] = {GameResult.A_WINS: set(), GameResult.B_WINS: set(), GameResult.DRAW: set()}
@@ -243,6 +243,6 @@ if __name__ == "__main__":
         game = TicTacToeGame()
         result = game.play_game(playerA, playerB, print_output=False)
         stats[result].add(game.moves)
-    print("Stats:")
+    print("Win Stats:")
     for key, value in stats.items():
         print(f"  {key}: {len(value)}")
