@@ -4,12 +4,14 @@ from torch import nn
 
 #
 # Transformer v2 - added input embedding 
-#                  #positional embedding
+#                  # positional embedding - without it no need to fix context size
 #                  "position-wise" FFN
+#                  # residual connections - no improvement noticed
+#                  # dropout - no improvement noticed
 #
 CTX_SZ = 9 # context size (actually max game length size)
 FEAT_SZ = 9 # input feature size (actually one-hot single move encoding size)
-D_IN = 9 #6 # internal embedding size
+D_IN = 9 # internal embedding size
 NN_LAYER_MULTIPLIER = 4  # determines feed-forward layer size
 NUM_BLOCKS = 3  # number of transformer blocks
 
@@ -73,7 +75,8 @@ class TicTacToeLM_1(nn.Module):
     def forward(self, x: torch.Tensor):
         #print("Input x shape:", x.shape)
         batch_sz = x.shape[:-1]
-        X = x.reshape(*batch_sz, CTX_SZ, FEAT_SZ)  # input in matrix shape: CTX_SZ x FEAT_SZ
+        T_SZ = x.shape[-1] // FEAT_SZ  # num tokens
+        X = x.reshape(*batch_sz, T_SZ, FEAT_SZ)  # input in matrix shape: T_SZ x FEAT_SZ
         X = X @ self.Wemb # embedding encoding
         #X = X + self.pos_emb(torch.arange(CTX_SZ))  # add positional embedding (using tensor broadcasting)
         Z :torch.Tensor = self.trf_blocks(X)
