@@ -10,7 +10,7 @@ from torch import nn
 #                  # dropout - no improvement noticed
 #
 CTX_SZ = 9 # context size (actually max game length size)
-FEAT_SZ = 9 # input feature size (actually one-hot single move encoding size)
+VOCAB_SZ = 10 # dictionary size (0-9)
 D_IN = 9 # internal embedding size
 NN_LAYER_MULTIPLIER = 4  # determines feed-forward layer size
 NUM_BLOCKS = 3  # number of transformer blocks
@@ -36,7 +36,7 @@ class TTTAttention(nn.Module):
         K = X @ self.Wk  # keys
         S = (Q @ K.transpose(-2, -1)) / (D_IN ** 0.5)  # attention scores for input X
         S = causal_mask(S)
-        A = torch.softmax(S, dim=-2)  # attention weights for input X
+        A = torch.softmax(S, dim=-1)  # attention weights for input X
         #A = self.dropout(A) # optional: apply dropout to attention weights
         Z = A @ X # attention output
         return Z
@@ -66,7 +66,7 @@ class TicTacToeLM_1(nn.Module):
     def __init__(self):
         super().__init__()
         # input embedding parameters
-        self.Wemb = torch.nn.Parameter(torch.randn(size=(FEAT_SZ, D_IN)))
+        self.Wemb = nn.Embedding(num_embeddings=VOCAB_SZ, embedding_dim=D_IN)
         # # positional embedding layer
         # self.pos_emb = torch.nn.Embedding(CTX_SZ, D_IN)
         # transfomer blocks
@@ -74,34 +74,17 @@ class TicTacToeLM_1(nn.Module):
         
     def forward(self, x: torch.Tensor):
         #print("Input x shape:", x.shape)
-        batch_sz = x.shape[:-1]
-        T_SZ = x.shape[-1] // FEAT_SZ  # num tokens
-        X = x.reshape(*batch_sz, T_SZ, FEAT_SZ)  # input in matrix shape: T_SZ x FEAT_SZ
-        X = X @ self.Wemb # embedding encoding
+        X = self.Wemb(x) # embedding encoding (*batch_sz, CTX_SZ, D_IN)
         #X = X + self.pos_emb(torch.arange(CTX_SZ))  # add positional embedding (using tensor broadcasting)
         Z :torch.Tensor = self.trf_blocks(X)
-        # get last embedding only
-        last_emb = Z[..., -1, :]  # shape: (*batch_sz, D_IN)
-        logits = last_emb @ self.Wemb.transpose(-2, -1)  # embedding decoding
+        logits = Z @ self.Wemb.weight.t()  # embedding decoding (use tight weight sharing)
         return logits
     
     def parameters_count(self) -> int:
         return sum(p.numel() for p in self.parameters())
 
 if __name__ == "__main__":
-    # test
     model = TicTacToeLM_1()
     total_params = model.parameters_count()
     print(f"Total parameters: {total_params}")
 
-    x = torch.randn(size=(CTX_SZ*FEAT_SZ,))  # random input
-    logits_single: torch.Tensor = model(x)
-
-    x = x.unsqueeze(0)  # add batch dimension
-    logits_batched: torch.Tensor = model(x)
-    if torch.allclose(logits_single, logits_batched.squeeze(0)):
-        print("Single and batch logits match!")
-    else:
-        print("Mismatch between single and batch logits!")
-        print("Logits:", logits_single)
-        print("Logits with batch dim:", logits_batched)
