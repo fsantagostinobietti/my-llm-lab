@@ -16,3 +16,8 @@ def from_game_to_one_hot(game: str) -> torch.Tensor:
 
     # Encode moves
     return torch.cat( tuple(from_move_to_one_hot(move) for move in moves) )
+
+def to_token_ids(moves: str) -> torch.tensor:
+    """Convert a move string to token IDs (1-9 for moves, 0 for padding)."""
+    token_ids = [int(move) for move in moves]
+    return torch.tensor(token_ids, dtype=torch.long)

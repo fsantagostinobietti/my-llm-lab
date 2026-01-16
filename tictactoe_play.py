@@ -3,7 +3,7 @@ import functools
 import random
 import torch
 
-from nn_utils import from_game_to_one_hot
+from nn_utils import from_game_to_one_hot, to_token_ids
 from tictactoe import TicTacToe
 from tictactoe_nn_1 import TicTacToeNeuralNetwork_1
 from tictactoe_tran_1 import TicTacToeTransformer_1
@@ -63,19 +63,19 @@ class AIPlayer(Player):
         
         if self.model is not None:
             # Use neural network to predict best move
-            input_str = game_moves.ljust(9, '0')
-            input_tensor = from_game_to_one_hot(input_str)
             with torch.no_grad():
+                input_tensor = to_token_ids(game_moves)
                 logits = self.model(input_tensor)
-                probs = torch.softmax(logits, dim=0)
-            # Get probabilities for valid positions
-            valid_indices = [int(p) - 1 for p in valid]
-            valid_probs = probs[valid_indices]
-            # Normalize probabilities
-            valid_probs = valid_probs / valid_probs.sum()
-            # Choose the move with highest probability
-            best_idx = torch.argmax(valid_probs)
-            return valid[best_idx]
+                logits_last = logits[-1]  # get logits for the last position
+                # mask invalid moves
+                mask = torch.full(logits_last.shape, float('-inf'))
+                mask[valid] = 0.0
+                logits_last = logits_last + mask
+                # Convert logits to probabilities
+                probs = torch.softmax(logits_last, dim=0)
+                # Choose the move with highest probability
+                best_move = torch.argmax(probs)
+                return best_move.item()
         else:
             # Fallback to random move
             return random.choice(valid)
@@ -213,6 +213,7 @@ def generate_game_against_perfect_player() -> str:
     return game.moves + game.result
 
 if __name__ == "__main__":
+    torch.set_printoptions(precision=2, sci_mode=False)
 
     # # Example: Human vs AI (neural network)
     # game = TicTacToeGame()
@@ -226,23 +227,23 @@ if __name__ == "__main__":
     # playerB = AIPlayer(model=TicTacToeTransformer_1(layer_sz=8), checkpoint="ttt_tran_1.pth")
     # game.play_game(playerA, playerB)
 
-    # # Example: Human vs AI (LM)
-    # game = TicTacToeGame()
-    # playerA = HumanPlayer()
-    # playerB = AIPlayer(model=TicTacToeLM_1(), checkpoint="ttt_lm_1.pth")
-    # game.play_game(playerA, playerB)
+    # Example: Human vs AI (LM)
+    game = TicTacToeGame()
+    playerA = HumanPlayer()
+    playerB = AIPlayer(model=TicTacToeLM_1(), checkpoint="ttt_lm_1_B.pth")
+    game.play_game(playerA, playerB)
 
-    # Example: Random player vs AI player
-    playerA = RandomPlayer()
-    #playerB = PerfectPlayer()
-    playerB = AIPlayer(model=TicTacToeLM_1(), checkpoint="ttt_lm_1.pth")
-    #playerB = AIPlayer(model=TicTacToeTransformer_1(layer_sz=4), checkpoint="ttt_tran_1.pth")
-    #playerB = AIPlayer(model=TicTacToeNeuralNetwork_1(layer_sz=4), checkpoint="ttt_nn_#1_layer_4_epochs_300.pth")
-    stats: dict[str, set] = {GameResult.A_WINS: set(), GameResult.B_WINS: set(), GameResult.DRAW: set()}
-    for _ in range(10000):
-        game = TicTacToeGame()
-        result = game.play_game(playerA, playerB, print_output=False)
-        stats[result].add(game.moves)
-    print("Win Stats:")
-    for key, value in stats.items():
-        print(f"  {key}: {len(value)}")
+    # # Example: Random player vs AI player
+    # playerA = RandomPlayer()
+    # #playerB = PerfectPlayer()
+    # playerB = AIPlayer(model=TicTacToeLM_1(), checkpoint="ttt_lm_1_B.pth")
+    # #playerB = AIPlayer(model=TicTacToeTransformer_1(layer_sz=4), checkpoint="ttt_tran_1.pth")
+    # #playerB = AIPlayer(model=TicTacToeNeuralNetwork_1(layer_sz=4), checkpoint="ttt_nn_#1_layer_4_epochs_300.pth")
+    # stats: dict[str, set] = {GameResult.A_WINS: set(), GameResult.B_WINS: set(), GameResult.DRAW: set()}
+    # for _ in range(10000):
+    #     game = TicTacToeGame()
+    #     result = game.play_game(playerA, playerB, print_output=False)
+    #     stats[result].add(game.moves)
+    # print("Win Stats:")
+    # for key, value in stats.items():
+    #     print(f"  {key}: {len(value)}")
