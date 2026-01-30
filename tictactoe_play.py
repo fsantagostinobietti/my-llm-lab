@@ -64,9 +64,12 @@ class AIPlayer(Player):
         if self.model is not None:
             # Use neural network to predict best move
             with torch.no_grad():
+                # adjust input for player A or B
+                game_moves = '0' + game_moves if len(game_moves)%2 == 0 else game_moves
                 input_tensor = to_token_ids(game_moves)
                 logits = self.model(input_tensor)
                 logits_last = logits[-1]  # get logits for the last position
+                #print("Logits last:", logits_last)
                 # mask invalid moves
                 mask = torch.full(logits_last.shape, float('-inf'))
                 mask[valid] = 0.0
@@ -227,23 +230,23 @@ if __name__ == "__main__":
     # playerB = AIPlayer(model=TicTacToeTransformer_1(layer_sz=8), checkpoint="ttt_tran_1.pth")
     # game.play_game(playerA, playerB)
 
-    # Example: Human vs AI (LM)
-    game = TicTacToeGame()
-    playerA = HumanPlayer()
-    playerB = AIPlayer(model=TicTacToeLM_1(), checkpoint="ttt_lm_1_B.pth")
-    game.play_game(playerA, playerB)
+    # # Example: Human vs AI (LM)
+    # game = TicTacToeGame()
+    # playerA = HumanPlayer()
+    # playerB = AIPlayer(model=TicTacToeLM_1(), checkpoint="ttt_lm_1.pth")
+    # game.play_game(playerA, playerB)
 
-    # # Example: Random player vs AI player
-    # playerA = RandomPlayer()
-    # #playerB = PerfectPlayer()
-    # playerB = AIPlayer(model=TicTacToeLM_1(), checkpoint="ttt_lm_1_B.pth")
-    # #playerB = AIPlayer(model=TicTacToeTransformer_1(layer_sz=4), checkpoint="ttt_tran_1.pth")
-    # #playerB = AIPlayer(model=TicTacToeNeuralNetwork_1(layer_sz=4), checkpoint="ttt_nn_#1_layer_4_epochs_300.pth")
-    # stats: dict[str, set] = {GameResult.A_WINS: set(), GameResult.B_WINS: set(), GameResult.DRAW: set()}
-    # for _ in range(10000):
-    #     game = TicTacToeGame()
-    #     result = game.play_game(playerA, playerB, print_output=False)
-    #     stats[result].add(game.moves)
-    # print("Win Stats:")
-    # for key, value in stats.items():
-    #     print(f"  {key}: {len(value)}")
+    # Example: Random player vs AI player
+    playerA = RandomPlayer()
+    #playerB = PerfectPlayer()
+    playerB = AIPlayer(model=TicTacToeLM_1(), checkpoint="ttt_lm_1.pth")
+    #playerB = AIPlayer(model=TicTacToeTransformer_1(layer_sz=4), checkpoint="ttt_tran_1.pth")
+    #playerB = AIPlayer(model=TicTacToeNeuralNetwork_1(layer_sz=4), checkpoint="ttt_nn_#1_layer_4_epochs_300.pth")
+    stats: dict[str, set] = {GameResult.A_WINS: set(), GameResult.B_WINS: set(), GameResult.DRAW: set()}
+    for _ in range(10000):
+        game = TicTacToeGame()
+        result = game.play_game(playerA, playerB, print_output=False)
+        stats[result].add(game.moves)
+    print("Win Stats:")
+    for key, value in stats.items():
+        print(f"  {key}: {len(value)}")
