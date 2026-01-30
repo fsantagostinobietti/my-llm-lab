@@ -4,10 +4,11 @@ from torch import nn
 
 #
 # Transformer v2 - added input embedding 
-#                  # positional embedding - without it no need to fix context size
+#                  positional embedding - it needs to fix context size; no improvement noticed
 #                  "position-wise" FFN
-#                  # residual connections - no improvement noticed
-#                  # dropout - no improvement noticed
+#                  residual connections - no improvement noticed
+#                  dropout - no improvement noticed
+#                  layer normalization - no improvement noticed
 #
 CTX_SZ = 9 # context size (actually max game length size)
 VOCAB_SZ = 10 # dictionary size (0-9)
@@ -19,6 +20,24 @@ def causal_mask(S: torch.Tensor) -> torch.Tensor:
     """Apply causal mask to attention scores"""
     mask = torch.triu(torch.ones(S.shape), diagonal=1)
     return S.masked_fill(mask.bool(), -torch.inf)
+
+class LayerNorm(nn.Module):
+    """Implementation of layer normalization that operates on the last dimension of
+       the input tensor x, which represents the embedding dimension (emb_dim).
+
+       The variable 'eps' is a small constant (epsilon) added to the variance to prevent division by zero
+       during normalization. 
+       The 'scale' and 'shift' are trainable parameters adjusted during training."""
+    def __init__(self, emb_dim):
+        super().__init__()
+        self.eps = 1e-5
+        self.scale = nn.Parameter(torch.ones(emb_dim))
+        self.shift = nn.Parameter(torch.zeros(emb_dim))
+    def forward(self, x):
+        mean = x.mean(dim=-1, keepdim=True)
+        var = x.var(dim=-1, keepdim=True, unbiased=False)
+        norm_x = (x - mean) / torch.sqrt(var + self.eps)
+        return self.scale * norm_x + self.shift
 
 class TTTAttention(nn.Module):
     """Self-attention mechanism for Tic Tac Toe"""
@@ -53,10 +72,14 @@ class TTTTransformer(nn.Module):
             nn.ReLU(),
             nn.Linear(D_IN * NN_LAYER_MULTIPLIER, D_IN),
         )
+        self.norm1 = LayerNorm(D_IN)
+        self.norm2 = LayerNorm(D_IN)
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
-        Z = self.attention(X)
-        Z = self.linear_relu_stack(Z) # apply FFN to each embedding
+        X = self.norm1(X)
+        Z = X + self.attention(X) # attention with residual connection
+        Z = self.norm2(Z)
+        Z = Z + self.linear_relu_stack(Z) # apply FFN to each embedding
         return Z
     
 class TicTacToeLM_1(nn.Module):
@@ -67,15 +90,15 @@ class TicTacToeLM_1(nn.Module):
         super().__init__()
         # input embedding parameters
         self.Wemb = nn.Embedding(num_embeddings=VOCAB_SZ, embedding_dim=D_IN)
-        # # positional embedding layer
-        # self.pos_emb = torch.nn.Embedding(CTX_SZ, D_IN)
+        # positional embedding layer
+        self.pos_emb = torch.nn.Embedding(CTX_SZ, D_IN)
         # transfomer blocks
         self.trf_blocks = nn.Sequential(*[TTTTransformer() for _ in range(NUM_BLOCKS)])
         
     def forward(self, x: torch.Tensor):
         #print("Input x shape:", x.shape)
         X = self.Wemb(x) # embedding encoding (*batch_sz, CTX_SZ, D_IN)
-        #X = X + self.pos_emb(torch.arange(CTX_SZ))  # add positional embedding (using tensor broadcasting)
+        X = X + self.pos_emb(torch.arange(CTX_SZ))  # add positional embedding (using tensor broadcasting)
         Z :torch.Tensor = self.trf_blocks(X)
         logits = Z @ self.Wemb.weight.t()  # embedding decoding (use tight weight sharing)
         return logits
